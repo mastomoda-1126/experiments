@@ -36,6 +36,7 @@ Note:
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Literal, Tuple, Optional
+import base64
 import random
 import math
 
@@ -775,6 +776,9 @@ class SchoolEcosystem:
             f"Change seeds suppressed      : {self.change_seeds_suppressed}",
             f"Systemic opportunity cost    : {self.systemic_opportunity_cost:.2f}",
             "",
+            f"Admins total                 : {len(admins)}",
+            f"Students total               : {len(students)}",
+            "",
             f"Teachers total               : {len(teachers)}",
             f"Teachers active              : {len(active_teachers)}",
             f"Teachers burned out          : {len(burned_teachers)}",
@@ -1085,15 +1089,15 @@ def _print_hidden_message_if_any_future_hope(school: SchoolEcosystem) -> None:
     if not any(a.role == "student" and a.is_future_hope for a in school.actors):
         return
 
-    encoded_words = [
-        "siht", "si", "a", "lanoitcif", "loohcs", "noitalumis.",
-        "ti", "si", "ton", "tuoba", "eno", "oreh", "rehcaet.",
-        "fi", "uoy", "era", "gninnur", "siht", "edoc", "dna", "gnidaer", "eht", "tuptuo,",
-        "uoy", "era", "ydaerla", "gnikniht", "tuoba", "smetsys", "dna", "eht", "erutuf.",
-        "taht", "teiuq", "tibah", "si", "eno", "llams", "noisrev", "fo", "'erutuf", "epoh'.",
+    encoded_chunks = [
+        "VGhpcyBpcyBhIGZpY3Rpb25hbCBzY2hvb2wgc2ltdWxhdGlvbi4gSXQgaXMgbm90IGFib3V0",
+        "IG9uZSBoZXJvIHRlYWNoZXIuIElmIHlvdSBhcmUgcnVubmluZyB0aGlzIGNvZGUgYW5kIHJl",
+        "YWRpbmcgdGhlIG91dHB1dCwgeW91IGFyZSBhbHJlYWR5IHRoaW5raW5nIGFib3V0IHN5c3Rl",
+        "bXMgYW5kIHRoZSBmdXR1cmUuIFRoYXQgcXVpZXQgaGFiaXQgaXMgb25lIHNtYWxsIHZlcnNp",
+        "b24gb2YgJ2Z1dHVyZSBob3BlJy4=",
     ]
-
-    msg = " ".join(w[::-1] for w in encoded_words)
+    hidden_payload = "".join(encoded_chunks)
+    msg = base64.b64decode(hidden_payload).decode("utf-8")
     print("\n=== Hidden message ===")
     print(msg)
 
