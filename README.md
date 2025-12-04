@@ -47,12 +47,17 @@ At the end of a run it:
 - Computes **probabilistic future hope** for each student.
 - Prints **stakeholder utility scores** from several example viewpoints.
 - Emits a small, lightly obfuscated **hidden message** if at least one student is tagged as “future hope”.
+- Writes a **year-by-year history** (burnout, complexity, expected future-hope count, etc.) used for downstream reporting.
+- Generates a **dashboard PNG** plus a timestamped PDF under `outputs/` with trend charts and an automatically generated “Org health advice” panel.
 
 ---
 
 ## 2. How To Run It
 
-Requirements: **Python 3.10+**
+Requirements:
+
+- **Python 3.10+**
+- `matplotlib` (install with `pip install matplotlib` or `pip install -r requirements.txt`)
 
 ### Basic usage (CLI)
 
@@ -64,8 +69,9 @@ This will:
 
 1. Build a demo scenario (fictional actors + default parameters).
 2. Print the initial state.
-3. Simulate 5 years (default).
+3. Simulate 10 years by default (override with `simulate(years=...)` or edit `simulate`).
 4. Print the final state, staff comparison, reintegration report, stakeholder scores, and possibly the hidden message.
+5. Save `outputs/simulation_history_page1.png` and a timestamped PDF in `outputs/` with the same trend charts plus the auto-generated org-health advice block.
 
 ### Programmatic usage
 
@@ -282,6 +288,8 @@ You can change **any** of these knobs to describe different fictional worlds.
   * `randomness = 0.0`: fully deterministic, given the same start state.
   * Higher values: more random variation around the trend.
 
+* `trend_damping` (default `0.65`) blends each year's delta back toward the previous value. Increase it toward `1.0` for snappier swings, decrease toward ~`0.4` for very slow-moving institutions.
+
 ### 4.2 External pressure
 
 Defined in:
@@ -451,7 +459,28 @@ Remember: **utility scores do not affect the simulation**. They only affect **ho
 
 ---
 
-## 5. Suggested Workflow (For Exploration or Workshops)
+## 5. Visual dashboard (PNG + PDF)
+
+Every simulation run writes the following artifacts to `outputs/`:
+
+- `simulation_history_page1.png`
+- `simulation_history_YYYYMMDD_HHMMSS.pdf` (timestamped so you can keep multiple runs without overwriting)
+
+Each dashboard has seven panels:
+
+1. **Initial parameters** – the starting metrics so you can compare later runs.
+2. **Org health advice** – automatically generated guidance (e.g., “Lower suppression”, “Simplify workflows”) derived from the latest snapshot.
+3. **Infrastructure vs Complexity** – trendlines for infra health vs system complexity.
+4. **Burnout & Workload** – burnout index vs workload index.
+5. **Student outcomes** – student exit rate vs learning efficiency.
+6. **Productivity & Efficiency** – true productivity vs true/recognized efficiency.
+7. **Future hope output** – expected count of future-hope students computed from the probability model.
+
+Use the PDF when you need to flip through multiple runs, and the PNG for quick sharing in reports or slides.
+
+---
+
+## 6. Suggested Workflow (For Exploration or Workshops)
 
 1. **Run the default scenario once**
 
@@ -499,7 +528,7 @@ Remember: **utility scores do not affect the simulation**. They only affect **ho
 
 ---
 
-## 6. Interpretation & Safety Notes
+## 7. Interpretation & Safety Notes
 
 To avoid misunderstandings:
 
@@ -528,7 +557,7 @@ If you use this simulator in teaching:
 
 ---
 
-## 7. Extending the Simulator
+## 8. Extending the Simulator
 
 Because the core is plain Python with dataclasses, it is easy to extend:
 
@@ -603,12 +632,17 @@ AI・DX・マクロ環境の変化にさらされる「外部世界」と、そ�
 - 各生徒の**future hope の確率とラベル付け**
 - 複数の**ステークホルダー視点**から見たユーティリティスコア
 - 少なくとも1人の生徒が future hope になった場合、小さな**隠しメッセージ**（軽く難読化済み）を出力
+- 年次ごとの**履歴データ**（バーンアウト、複雑性、future hope 期待値など）を保存
+- `outputs/` に**ダッシュボード PNG**とタイムスタンプ付き PDF を出力（トレンド＋組織アドバイス付き）
 
 ---
 
 ## 2. 実行方法
 
-要件：**Python 3.10 以上**
+要件：
+
+- **Python 3.10 以上**
+- `matplotlib`（`pip install matplotlib` または `pip install -r requirements.txt` などで導入）
 
 ### 基本的な使い方（コマンドライン）
 
@@ -620,8 +654,11 @@ python main.py       # Windows なら: py main.py
 
 1. デモ用シナリオの構築（架空のアクター＋デフォルトパラメータ）
 2. 初期状態サマリーの出力
-3. デフォルトで**5年間**のシミュレーション
+3. デフォルトで**10年間**のシミュレーション（`simulate(years=...)` で変更可能）
 4. 最終状態サマリー、外部世界との比較、再統合レポート、ステークホルダスコア、および条件を満たせば隠しメッセージの出力
+5. `outputs/` に `simulation_history_page1.png` とタイムスタンプ付き PDF（例：`simulation_history_YYYYMMDD_HHMMSS.pdf`）を保存
+
+以前の実行結果を見直したい場合は、`outputs/` フォルダ内の PNG / PDF を開いてください。PDF は毎回タイムスタンプ付きで生成されるため、閲覧中に上書きされる心配はありません。
 
 ### プログラムから呼び出す場合
 
@@ -862,6 +899,11 @@ def student_future_hope_probability(school, world, actor) -> float:
   * `randomness = 0.0` にすると → 完全決定論（同じ初期状態なら毎回同じ結果）
   * 値を上げると → トレンドに対するランダムな揺らぎが増える
 
+* `trend_damping`（デフォルト `0.65`）：
+
+  * 毎年の変化量を前年度値に向けてブレンドする係数。
+  * `1.0` に近づけると急激に変化し、`0.4` 付近まで下げると非常に緩やかな推移になる。
+
 ### 4.2 外部圧力（ExternalWorld）
 
 ```python
@@ -1028,7 +1070,28 @@ StakeholderUtility(
 
 ---
 
-## 5. おすすめの利用フロー（探索・ワークショップ向け）
+## 5. 可視化ダッシュボード（PNG / PDF）
+
+各シミュレーション実行後、`outputs/` に以下のファイルが生成されます。
+
+- `simulation_history_page1.png`
+- `simulation_history_YYYYMMDD_HHMMSS.pdf`（タイムスタンプ付きで過去のランを保存可能）
+
+ダッシュボードには7つのパネルが含まれます。
+
+1. **Initial parameters** – 比較用に初期状態の指標を一覧化
+2. **Org health advice** – 最新スナップショットをもとに自動生成される改善アドバイス
+3. **Infrastructure vs Complexity** – インフラ健全性とシステム複雑性の推移
+4. **Burnout & Workload** – バーンアウト指数と業務負荷の推移
+5. **Student outcomes** – 生徒離脱率と学習効率の推移
+6. **Productivity & Efficiency** – 実際の生産性と真/認識効率の推移
+7. **Future hope output** – future hope 期待人数（確率モデルに基づく）の推移
+
+複数回の実行を比較したい場合は PDF をめくり、レポートやスライドに貼る際は PNG を利用してください。
+
+---
+
+## 6. おすすめの利用フロー（探索・ワークショップ向け）
 
 1. **まずはデフォルトシナリオを一度回す**
 
@@ -1077,7 +1140,7 @@ StakeholderUtility(
 
 ---
 
-## 6. 解釈・安全面での注意
+## 7. 解釈・安全面での注意
 
 誤解を避けるためのポイントです。
 
@@ -1105,7 +1168,7 @@ StakeholderUtility(
 
 ---
 
-## 7. シミュレータの拡張アイデア
+## 8. シミュレータの拡張アイデア
 
 コアはプレーンな Python + dataclass だけで構成されているので、拡張は容易です。
 
@@ -1133,4 +1196,3 @@ StakeholderUtility(
 
 ここで重要なのは、**数値そのものの正しさ**ではなく、
 それらの数値を動かしながら議論するときに生まれる**問いや対話**です。
-
