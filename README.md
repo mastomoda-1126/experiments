@@ -1,9 +1,9 @@
 # School Ecosystem Simulator
 
 ## What This Script Does
-- Models a fictional “protected school ecosystem interacting with a harsher external world that is shaped by AI/DX trends.
+- Models a fictional “protected school　ecosystem interacting with a harsher external world that is shaped by AI/DX trends.
 - Simulates infrastructure decay, burnout, productivity, efficiency, and stakeholder utilities with explicit randomness so results are non-deterministic.
-- Tracks legacy staff, higher-adaptability teachers, and 100 generated students to see who burns out, leaves, or becomes “future hope Eafter a multiyear run.
+- Tracks legacy staff, higher-adaptability teachers, and 100 generated students to see who burns out, leaves, or becomes “future hope after a multiyear run.
 - Prints summaries before and after the run, compares staff against external requirements, reports student futures, and emits a lightly obfuscated hidden message if any students reach future-hope status.
 
 Run it with Python 3.10+:
@@ -27,7 +27,7 @@ The demo scenario is assembled in `build_demo_scenario()` and `simulate()` (see 
    - Edit `ExternalWorld(selection_pressure=0.8, ai_shift_speed=0.9)` to represent harsher or kinder outside markets. Higher values raise the adaptability threshold staff must clear to thrive after leaving.
 
 3. **Macro constraints**
-   - The `EnvironmentConstraints` dataclass (`budget_pressure`, `regulation_rigidity`, `demographic_pressure`) is created right before the `SchoolEcosystem`. Raising these numbers simulates tighter budgets, tougher regulation, or shrinking student pools and will influence several downstream ticks.
+   - The `EnvironmentConstraints` dataclass (`budget_pressure`, `regulation_rigidity`, `demographic_pressure`) is created right before the `SchoolEcosystem`. Raising these numbers simulates tighter budgets, tougher regulations, or shrinking student pools and will influence several downstream ticks.
 
 4. **School starting stats**
    - `SchoolEcosystem(...)` is instantiated with dozens of baseline indices (infrastructure health, suppression level, portal maturity, AI accessibility, etc.). Override the defaults directly in the constructor call—or reassign attributes after creation—to encode a healthier or more fragile organization.
@@ -43,14 +43,14 @@ The demo scenario is assembled in `build_demo_scenario()` and `simulate()` (see 
      ```
 
 5. **Dynamics coefficients**
-   - Pass a customized `DynamicsCoefficients(...)` when creating `SchoolEcosystem` if you want burnout to react more strongly (or weakly) to fragmentation, workload, etc. That lets you keep the actor roster the same but explore alternate “physics Efor the ecosystem.
+   - Pass a customized `DynamicsCoefficients(...)` when creating `SchoolEcosystem` if you want burnout to react more strongly (or weakly) to fragmentation, workload, etc. That lets you keep the actor roster the same but explore alternate “physics for the ecosystem.
 
 6. **Actors**
    - The roster at the bottom of `build_demo_scenario()` seeds legacy admins, three high-adapt teachers, and 100 procedurally generated students. Adjust `adaptability`, `change_attitude`, or even add new roles to see how different mixes change the outcome.
    - The student loop currently samples adaptability from a truncated Gaussian (`random.gauss(0.5, 0.15)` and clamps it to `[0.1, 0.9]`). Modify the mean, variance, or clamp to simulate more fragile or more resilient student bodies.
 
 7. **Stakeholder utilities**
-   - `build_default_utilities()` defines three example viewpoints (teachers, management KPI lens, and student/parent experience). Edit the `weights` dicts or add new `StakeholderUtility` objects to see how different value systems evaluate the exact same simulated state.
+   - `build_default_utilities()` defines three example viewpoints (teachers, management KPI lens, and student/parent experience). Edit the `weights` dicts or add new `StakeholderUtility` objects to see how different value systems evaluate the same simulated state.
 
 ## Suggested Workflow
 1. Modify parameters as described above.
