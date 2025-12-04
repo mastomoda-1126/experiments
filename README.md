@@ -550,5 +550,587 @@ You are encouraged to **fork and customize** this simulator for:
 
 The important part is not the exact numbers, but **the conversations and questions** that emerge when you start to move those numbers around.
 
+# Japanese ver.
+
+````markdown
+# School Ecosystem Simulator（スクール・エコシステム・シミュレータ）
+
+AI・DX・マクロ環境の変化にさらされる「外部世界」と、そこからある程度保護された**架空の学校エコシステム**の相互作用をモデル化した、小さな**システム系のおもちゃ（systems-toy）**です。
+
+> ⚠️ **最初に重要な注意**
+>
+> - このシミュレータに登場する学校・人物・役職は、すべて**フィクション**です。
+> - 係数・しきい値・確率などの数値は、**経験的な真実ではなく「仮のつまみ」**です。
+> - 現実の人事・制度設計などの**意思決定ツールとして使うことは想定していません**。  
+>   これは、組織構造・圧力・利害関係者の視点の違いについて考えるための**思考実験**用モデルです。
+
+---
+
+## 1. このスクリプトがやること
+
+このシミュレータは、ざっくり言うと次のようなことを行います。
+
+- **保護された学校エコシステム**をモデル化  
+  - 「レガシーOS」を持つアクター（教員・管理職）が、外部世界より長く生き残れる環境
+- それと対になる**外部世界**をモデル化  
+  - `selection_pressure`：選択圧（厳しさ）
+  - `ai_shift_speed`：AIパラダイムシフトの速度
+- 年ごとの変化として、以下のような指標をシミュレート  
+  - インフラ健全性
+  - DXロードマップの明確さ
+  - バーンアウト
+  - 生産性
+  - 「真の効率」 vs 「認識されている効率（KPI）」
+  - 信頼・情報透明性
+  - 学習効率・生徒離脱率
+  - イノベーションポテンシャルとローカルLLM基盤
+- **乱数によるノイズ**を明示的に入れ、結果が**非決定的**になるように設計
+- 追跡するアクター：
+  - レガシーな管理職・教員
+  - 高適応な教員数名
+  - 100人の生成された生徒
+- 複数年のシミュレーションを通して観察すること：
+  - 誰がバーンアウトするか？
+  - 誰がシステムから出ていくか？
+  - 出た人は外で「再起」できるのか、それともキャリア的に「犠牲」になってしまうのか？
+  - 環境と適応力の組み合わせの中で、どの生徒が確率的に「future hope」になるのか？
+
+シミュレーション終了時には、次のものを出力します。
+
+- 学校状態の**開始前 / 終了後サマリー**
+- スタッフが外部世界の要求をどの程度満たせるかの比較
+- システムを離れたスタッフの**再統合（re-integration）レポート**
+- 各生徒の**future hope の確率とラベル付け**
+- 複数の**ステークホルダー視点**から見たユーティリティスコア
+- 少なくとも1人の生徒が future hope になった場合、小さな**隠しメッセージ**（軽く難読化済み）を出力
+
+---
+
+## 2. 実行方法
+
+要件：**Python 3.10 以上**
+
+### 基本的な使い方（コマンドライン）
+
+```bash
+python main.py       # Windows なら: py main.py
+````
+
+このコマンドで行われること：
+
+1. デモ用シナリオの構築（架空のアクター＋デフォルトパラメータ）
+2. 初期状態サマリーの出力
+3. デフォルトで**5年間**のシミュレーション
+4. 最終状態サマリー、外部世界との比較、再統合レポート、ステークホルダスコア、および条件を満たせば隠しメッセージの出力
+
+### プログラムから呼び出す場合
+
+別スクリプトや REPL から直接呼び出すこともできます。
+
+```bash
+python - <<'PY'
+from main import simulate
+
+# 例：8年シミュレーション、乱数シードを変更
+simulate(years=8, seed=7)
+PY
 ```
+
+引数：
+
+* `years`: シミュレートする「学校年度」の数
+* `seed`: 再現性を保つための乱数シード（任意）
+  同じ seed と同じ構造パラメータなら、同じ結果が出ます。
+
+---
+
+## 3. 概念モデル（各クラスが意味しているもの）
+
+コードを読みやすく・変更しやすくするために、主要な dataclass の意味を整理します。
+
+### 3.1 Actor
+
+```python
+@dataclass
+class Actor:
+    name: str
+    role: Literal["teacher", "admin", "student"]
+    os_version: str
+    adaptability: float  # 0.0–1.0
+    protected: bool = True
+    ...
 ```
+
+`Actor` はエコシステム内の**1人の人物**を表します。
+
+* `role`: `"teacher"`, `"admin"`, `"student"` のいずれか
+* `os_version`: `"LegacyOS-1995"`, `"HighAdaptOS-2025"` のようなラベル（**比喩的なタグ**であり、実在ソフトではありません）
+* `adaptability`: 変化への適応力（0.0〜1.0）
+* その他のフィールドで管理するもの：
+
+  * バーンアウト状態
+  * システムから離脱したかどうか
+  * 外部で「再起」できたか、それとも「犠牲」になったか
+  * 機会費用（opportunity_cost）と、そのときの選択（`stay_inside` / `leave_outside`）
+  * 生徒の場合：future hope 確率とラベル
+
+### 3.2 ExternalWorld
+
+```python
+@dataclass
+class ExternalWorld:
+    selection_pressure: float = 0.8
+    ai_shift_speed: float = 0.9
+```
+
+**外部世界の厳しさ**を表すクラスです。
+
+* `required_threshold()`
+  → 外部世界で生き残るために必要な「実効適応力」を計算
+* `evaluate_actor(actor)`
+  → 教職員が外で生き残れそうかどうかの**ベースライン判定（決定論的）**
+* `reintegration_outcome(actor)`
+  → バーンアウトペナルティと乱数ノイズを加えたうえで、
+
+  * `"rebooted"`（再起）
+  * `"casualty"`（システム由来の犠牲）
+    を確率的に決定
+
+### 3.3 EnvironmentConstraints
+
+```python
+@dataclass
+class EnvironmentConstraints:
+    budget_pressure: float = 0.5
+    regulation_rigidity: float = 0.5
+    demographic_pressure: float = 0.5
+```
+
+学校の外側にある**マクロ制約**を表します。
+
+* `budget_pressure`: 予算圧力（高いほど改善に使える余力が少ない）
+* `regulation_rigidity`: 規制の硬さ（高いほど制度変更が難しい）
+* `demographic_pressure`: 人口動態圧力（高いほど生徒数減少・採用難など）
+
+これらは複数の `_tick_...` 内で参照され、たとえば：
+
+* イノベーションポテンシャルの蓄積速度
+* 教材資産・リポジトリの構築速度
+* 採用難易度
+* 生徒離脱のダイナミクス
+
+などに影響します。
+
+### 3.4 SchoolEcosystem
+
+```python
+@dataclass
+class SchoolEcosystem:
+    name: str
+    env: EnvironmentConstraints
+    dynamics: DynamicsCoefficients = field(default_factory=DynamicsCoefficients)
+    actors: List[Actor] = field(default_factory=list)
+    ...
+```
+
+**学校組織そのもの**を表すクラスで、状態とダイナミクスを一括して持ちます。
+
+主なインデックス例：
+
+* `infrastructure_health`（インフラ健全性）
+* `dx_clarity`（DXロードマップの明確さ）
+* `burnout_index`（教職員バーンアウト指数）
+* `student_exit_rate`（生徒離脱率推定）
+* `portal_maturity` / `database_foundation`（ポータル・DBの成熟度）
+* `process_fragmentation_index`（業務の分断度）
+* `task_personalization_index`（タスク属人性）
+* `external_system_dependency` / `external_spend`（外部システム依存と支出）
+* `educational_asset_index` / `central_repository_level`（教材資産・中央リポジトリ）
+* `innovation_potential_index` / `local_llm_infra_level`
+* `ai_service_quality_index` / `ai_accessibility_index`
+* `productivity_index`
+* `efficiency_index_true` vs `efficiency_index_recognized`
+* `suppression_level`（変化抑圧レベル）
+* `leadership_trust_battery` / `info_transparency`
+* `pm_capability` / `grand_design_clarity`
+
+年ごとの更新は次のように行われます。
+
+```python
+def simulate_year(self) -> None:
+    self.years_simulated += 1
+    self._tick_infrastructure()
+    self._tick_dx_clarity()
+    self._tick_strategy_layer()
+    self._tick_portal_and_db()
+    self._tick_pm_and_design()
+    self._tick_change_dynamics()
+    self._tick_education_assets()
+    self._tick_innovation()
+    self._tick_external_systems()
+    self._tick_trust_and_transparency()
+    self._tick_burnout()
+    self._tick_students()
+    self._tick_productivity_and_efficiency()
+```
+
+各 `_tick_...` 関数は、「その1年で何がどう変化するか」という**局所的なルール（物理法則）**を表しています。
+
+### 3.5 DynamicsCoefficients（「物理パラメータ」）
+
+```python
+@dataclass
+class DynamicsCoefficients:
+    infra_to_burnout: float = 0.1
+    dxclarity_to_burnout: float = 0.1
+    ...
+```
+
+これらは、状態変数（例：インフラ不良）がアウトカム（例：バーンアウト）に与える影響の**重み**です。
+
+* 経験的に校正された値ではなく、**仮説ベースのスライダー**として扱ってください。
+* 係数を大きくすると → その要因がアウトカムに強く効く世界観
+* 小さくすると → その要因があまり重要でない世界観
+
+`DynamicsCoefficients` を差し替えることで、構造を変えずに
+
+* 「インフラ重視の世界」
+* 「信頼重視の世界」
+* 「AI による生産性向上効果を控えめにみる世界」
+
+など、**異なる世界観**を試すことができます。
+
+### 3.6 StakeholderUtility（「価値レイヤー」）
+
+```python
+@dataclass
+class StakeholderUtility:
+    name: str
+    weights: dict[str, float]
+```
+
+`SchoolEcosystem` 上の属性に重み付けをして、1つのスカラー値（スコア）に変換するための簡単な線形ユーティリティ関数です。
+
+* シミュレーションそのものには**一切影響しません**。
+* ある状態を、ある視点（教員・経営層・生徒/保護者など）からどう評価するか、という**見方の違い**を表現します。
+
+デフォルトのユーティリティは `build_default_utilities()` に定義されています。
+
+### 3.7 生徒の「future hope」確率
+
+```python
+def student_future_hope_probability(school, world, actor) -> float:
+    ...
+```
+
+各生徒について、この関数は次を行います。
+
+* 生徒自身の**実効適応力**と外部世界の要求水準との差（`delta`）を評価
+* 学校環境から算出した **env_score** を使用：
+
+  * 抑圧レベル
+  * DX clarity
+  * 生徒学習効率
+  * AI へのアクセス性
+* それらを**ロジスティック関数**に通して、`0〜1` の確率に変換
+
+設計意図：
+
+* 環境が悪くても、高い適応力を持つ生徒には **ゼロではない小さな確率**で future hope の可能性を残す。
+* 環境が良く、適応力も高い場合は、確率が**数十パーセント程度**まで上がり得る。
+* 実際にどの個人が future hope になるかは、確率に基づく乱数で決まるため、**運命論的な決めつけは避けられています**。
+
+---
+
+## 4. 初期パラメータの調整方法
+
+デモシナリオは `build_demo_scenario()` で組み立てられ、`simulate()` から使われます（`main.py` を参照）。
+ここで紹介するパラメータは、**どれも自由に変更して構いません**。
+
+> 💡 **考え方**
+> これらのパラメータは「世界がこう動くはずだ」という**あなた自身の前提**です。
+> それを書き換えてみること自体が、このシミュレータの狙いの一部です。
+
+### 4.1 シミュレーション期間とランダム性
+
+* `simulate(years=5, seed=42)` の引数：
+
+  * `years` を増やすと → 長期的なドリフト（10年, 20年など）が見える
+  * `seed` を変えると → 同じ構造の下で**別のランダムな歴史**を観察できる
+* `SchoolEcosystem` 内の `randomness` フィールド（デフォルト `0.05`）：
+
+  * `randomness = 0.0` にすると → 完全決定論（同じ初期状態なら毎回同じ結果）
+  * 値を上げると → トレンドに対するランダムな揺らぎが増える
+
+### 4.2 外部圧力（ExternalWorld）
+
+```python
+world = ExternalWorld(selection_pressure=0.8, ai_shift_speed=0.9)
+```
+
+* `selection_pressure` / `ai_shift_speed` を上げる
+  → **外の世界が厳しくなる**。再起に必要な実効適応力が高くなる。
+* 下げる
+  → **外が優しい世界**。外に出た教員が再起しやすくなる。
+
+### 4.3 マクロ制約（予算 / 規制 / 人口動態）
+
+`SchoolEcosystem` 作成直前で定義されています。
+
+```python
+env = EnvironmentConstraints(
+    budget_pressure=0.6,
+    regulation_rigidity=0.5,
+    demographic_pressure=0.4,
+)
+```
+
+* `budget_pressure`：高いほど「予算的に余裕がない世界」
+* `regulation_rigidity`：高いほど「改革しづらい世界」
+* `demographic_pressure`：高いほど「生徒数減少や採用難が強い世界」
+
+これらは直接・間接に：
+
+* イノベーションポテンシャルの伸び
+* 教材資産やリポジトリの構築
+* 採用難易度
+* 生徒離脱率
+
+などに影響します。
+
+### 4.4 学校の初期状態
+
+`SchoolEcosystem` には多くのフィールドがデフォルト値付きで定義されています。デモでは：
+
+```python
+school = SchoolEcosystem(
+    name="ProtectedSchool",
+    env=env,
+)
+```
+
+という最低限の指定だけをしています。
+
+任意の指標を上書きして、スタート地点を変えることができます。
+
+```python
+school = SchoolEcosystem(
+    name="ProtectedSchool",
+    env=env,
+    infrastructure_health=0.6,
+    suppression_level=0.5,
+    student_learning_efficiency=0.55,
+    portal_maturity=0.2,
+    database_foundation=0.2,
+)
+```
+
+よく効くレバーの例：
+
+* `suppression_level`（抑圧レベル）
+* `portal_maturity` / `database_foundation`（ポータル・DB）
+* `process_fragmentation_index`（業務分断）
+* `leadership_trust_battery` / `info_transparency`（信頼と透明性）
+* `local_llm_infra_level` / `ai_accessibility_index`（AI基盤とアクセス性）
+
+これらは初期数年の挙動や、そもそも**好循環が起こり得るかどうか**に強く影響します。
+
+### 4.5 DynamicsCoefficients（「物理」の強さを変える）
+
+各要因がバーンアウト・生産性・効率にどれだけ効くかを変えたい場合は、カスタム `DynamicsCoefficients` を渡します。
+
+```python
+custom_dyn = DynamicsCoefficients(
+    infra_to_burnout=0.15,               # インフラの悪さの影響を強める
+    workload_to_burnout=0.02,            # 業務量の影響をやや弱める
+    llm_to_productivity=0.03,            # LLM効果を控えめに見る
+    base_eff_infra_weight=0.5,           # 真の効率に対するインフラの重みを増やす
+)
+
+school = SchoolEcosystem(
+    name="ProtectedSchool",
+    env=env,
+    dynamics=custom_dyn,
+)
+```
+
+これにより、構造自体は変えずに「世界のルール」だけ変えることができます。
+
+### 4.6 アクター（教職員・生徒）
+
+`build_demo_scenario()` の末尾近くで、アクターが追加されています。
+
+* 管理職 / 教員：
+
+  * レガシーDX担当、レガシー教員数名
+  * 高適応教員（`HighAdaptTeacher1`〜`3`）…特定の誰かではなく、**テスト用の抽象粒子**
+* 生徒（100名）：
+
+```python
+for i in range(100):
+    adapt = random.gauss(0.5, 0.15)
+    adapt = max(0.1, min(0.9, adapt))
+    ...
+```
+
+変更できるポイント：
+
+* 生徒数を増減させる
+* 適応力分布を変更
+
+  * 平均値（`0.5`）を上げれば「全体的にハイスペックな学年」
+  * 標準偏差（`0.15`）を変えれば「凸凹の大きい学年」など
+  * clamp 範囲（`[0.1, 0.9]`）を変えれば最低・最高の適応力
+* `change_attitude` の分布（support / neutral / resist の比率）
+* 教員・管理職の追加／削除
+
+  * `os_version`, `adaptability`, `change_attitude`, `protected` などを調整
+
+これらは：
+
+* どれだけ「変化の種」が存在するか（`_tick_change_dynamics`）
+* 誰がバーンアウトし、誰が離脱しやすいか
+* 外部世界でのサバイバルチェック
+
+などに影響します。
+
+### 4.7 ステークホルダーのユーティリティ（価値観）
+
+`build_default_utilities()` では、3つの例示的な視点が定義されています。
+
+* `TeacherPerspective`（教員視点）
+* `ManagementKPIPerspective`（経営層/KPI視点）
+* `StudentParentPerspective`（生徒・保護者視点）
+
+例：
+
+```python
+StakeholderUtility(
+    name="TeacherPerspective",
+    weights={
+        "burnout_index": -0.7,
+        "workload_index": -0.5,
+        "student_learning_efficiency": 0.3,
+        "leadership_trust_battery": 0.4,
+        "recruitment_difficulty": -0.3,
+    },
+)
+```
+
+できること：
+
+* 重みを変えて、現場の優先順位を反映させる
+* 新しい視点（例：`RegulatorView`, `AlumniView` など）を追加する
+* 学生に自分の `weights` を考えさせ、「同じ状態が視点によってどう見え方が変わるか」を比較させる
+
+繰り返しになりますが、**ユーティリティスコアはシミュレーション結果を変えません**。
+あくまで「同じ世界をどう評価するか」のためのレイヤーです。
+
+---
+
+## 5. おすすめの利用フロー（探索・ワークショップ向け）
+
+1. **まずはデフォルトシナリオを一度回す**
+
+   ```bash
+   python main.py
+   ```
+
+   * 初期サマリーと最終サマリーをざっと眺める
+   * スタッフが外部世界で生き残れるかの表を確認
+   * future hope の人数や、各ステークホルダスコアを見る
+
+2. **「何を変えたらどうなりそうか」という仮説を1つ決める**
+
+   例：
+
+   * 「抑圧は低いが、インフラがとても弱い世界」
+   * 「AI基盤は強いが、PMが弱く信頼も低い世界」
+   * 「予算圧力が極端に高いが、リーダーシップが強い世界」
+
+3. **該当パラメータを編集する**
+
+   * `build_demo_scenario()` 内で：
+
+     * `SchoolEcosystem` の初期インデックスを変更
+     * `EnvironmentConstraints` を調整
+     * `ExternalWorld` を変更
+     * 必要なら `DynamicsCoefficients` をカスタム版に差し替え
+   * 必要に応じてアクター構成（特に生徒分布と高適応教員）を変える
+
+4. **再実行し、前後を比較する**
+
+   * `python main.py` または `simulate(...)` を再度実行
+   * 次のような指標を比較：
+
+     * `burnout_index`, `student_exit_rate`
+     * `efficiency_index_true` vs `efficiency_index_recognized`
+     * future hope 生徒数
+     * 各ステークホルダーのスコア
+
+5. **面白いシナリオをパターンとして保存する**
+
+   * `build_optimistic_scenario()`
+   * `build_pessimistic_scenario()`
+   * `build_high_trust_low_budget_scenario()`
+     のように、関数名で世界観を分けてしまうと、授業やワークショップで比較しやすくなります。
+
+---
+
+## 6. 解釈・安全面での注意
+
+誤解を避けるためのポイントです。
+
+* このコードは**道徳的判定器ではありません**。
+* 現実の誰かを指して「この人は残るべき／出るべき」と判断するためのものではありません。
+* 実在の学校や組織の将来を**予測するツール**でもありません。
+
+このシミュレータは、あくまで：
+
+* 構造（インフラ・DXの明確さ・PM・信頼・抑圧）と、
+* 外的制約（予算・規制・選択圧）が、
+* 個々人の適応力と選択にどう絡み合い得るか
+
+を考えるための**比喩的モデル**です。
+
+授業やワークショップで使う場合は、次の点を強調するとよいでしょう。
+
+* **パラメータを書き換えること自体が学習の一部**であること
+* 参加者に：
+
+  * デフォルト係数へのツッコミ
+  * 代替となるダイナミクス案の提案
+  * 自分なりのステークホルダー・ユーティリティの設計
+    をさせ、「自分は世界のどこに重きを置いているのか」を言語化させること
+
+---
+
+## 7. シミュレータの拡張アイデア
+
+コアはプレーンな Python + dataclass だけで構成されているので、拡張は容易です。
+
+* `SchoolEcosystem` に新しい指標を追加
+  例：`mentoring_index`, `community_support_index` など
+* 新しい `_tick_...` 関数を追加し、その指標をダイナミクスに組み込む
+* ファイルが長くなってきたら、以下のように分割：
+
+  * `models.py`（Actor, SchoolEcosystem, ExternalWorld, EnvironmentConstraints）
+  * `dynamics.py`（各 `_tick_...`）
+  * `reporting.py`（summary・print系）
+* print ベースの出力を：
+
+  * JSON 出力
+  * グラフ描画
+  * パラメータをGUIでいじれる簡易Web UI
+    などに差し替えると、より対話的な教材にもなります。
+
+このシミュレータは、次のような用途への**フォーク前提**で設計されています。
+
+* 授業・ワークショップ
+* ブログ記事・技術ノート
+* 組織の技術的負債や適応圧について考えるためのミニツール
+* あるいは純粋な個人的思考実験
+
+ここで重要なのは、**数値そのものの正しさ**ではなく、
+それらの数値を動かしながら議論するときに生まれる**問いや対話**です。
+
