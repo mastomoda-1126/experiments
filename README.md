@@ -570,6 +570,48 @@ You are encouraged to **fork and customize** this simulator for:
 
 The important part is not the exact numbers, but **the conversations and questions** that emerge when you start to move those numbers around.
 
+---
+
+## 9. Evidence-informed design notes (very short)
+
+This simulator is *not* empirically calibrated, but the sign and rough structure of many links are aligned with current research on schools, teachers, and students.
+
+Very briefly:
+
+- **Job demands, burnout, and retention**
+
+  Large meta-analyses of teacher well-being framed by the Job Demands–Resources (JD-R) model show that high workload, role conflict, and other job demands are robustly associated with stress and burnout, while resources such as autonomy, collegial support, and psychological capital predict better well-being and occupational commitment and lower turnover intentions (e.g., Li et al., 2025). Burnout and work engagement emerge as the strongest correlates of overall well-being.  
+
+  → In the simulator, indices like `workload_index`, `burnout_index` and `recruitment_difficulty` loosely reflect this JD-R logic.
+
+- **Leadership, trust, and school climate**
+
+  Qualitative and quantitative studies consistently find that opaque, authoritarian leadership practices harm teacher well-being and retention, while transparent, supportive, and participatory leadership strengthens trust and keeps teachers in the profession (e.g., Flores & Shuls, 2024; Li, 2024; Education Support, 2025). Work on inclusive school climate also shows that positive climate and teaching efficacy can buffer burnout.  
+
+  → This is echoed in how `leadership_trust_battery`, `info_transparency`, and `suppression_level` feed into `burnout_index`, `systemic_opportunity_cost`, and change-dynamics in the model.
+
+- **Digital complexity, technostress, and “DX gone wrong”**
+
+  Systematic reviews and empirical studies on **technostress** report that juggling multiple ICT systems, constant connectivity, and frequent tool changes can increase stress, health complaints, work–family conflict, and intentions to quit among teachers (e.g., Yang et al., 2025; Rey-Merchán et al., 2022; Wang et al., 2023, 2025). Poorly integrated digital ecosystems can therefore degrade both well-being and effectiveness.  
+
+  → The simulator expresses this as rising `external_system_dependency`, `system_complexity`, `process_fragmentation_index`, and `learning_cost_index` pushing up `workload_index` and `burnout_index` while dragging down `productivity_index`.
+
+- **AI / LLM tools: double-edged relief**
+
+  Recent reviews on AI in teaching and teacher professional development suggest that AI-based tools can offload routine tasks, support personalised feedback, and improve some learning metrics when well designed and supported, but also introduce new demands, ethical concerns, and dependency risks (e.g., Tan et al., 2024; Eltahir, 2024; Klimova, 2025; Younas, 2025).  
+
+  → In this toy model, higher `local_llm_infra_level` and `ai_accessibility_index` slightly relieve burnout and improve productivity and student learning efficiency, but only after some structural pre-conditions (infra, repositories, clarity) are met. This is deliberately cautious rather than “AI solves everything”.
+
+- **Teacher burnout and student outcomes / "future hope"**
+
+  A systematic review by Madigan & Kim (2021) and more recent work indicate that teacher burnout is associated with lower student achievement and less adaptive motivation, and that teacher stress and burnout covary with classroom climate indicators. At the same time, even in difficult environments, some students still achieve strong outcomes.  
+
+  → The `student_future_hope_probability(...)` function follows this spirit: harsh environments and high burnout push probabilities down, but individual adaptability still leaves a small non-zero chance for “future hope” students even in negative scenarios, and higher chances under healthier structures.
+
+> **TL;DR**: numbers in this code are *dials*, not truth.  
+> But the directions of influence are chosen so that pushing the dials roughly agrees with what recent research tends to find about schools, teachers, and students.
+
+
 # Japanese ver.
 
 **バージョン**: 現在のバージョンは **1.0.1** です（`main.py` の `__version__` と同じ値）。バージョンを上げる際は `main.py` と README の両方を同時に更新してください。
@@ -1177,3 +1219,26 @@ StakeholderUtility(
 
 ここで重要なのは、**数値そのものの正しさ**ではなく、
 それらの数値を動かしながら議論するときに生まれる**問いや対話**です。
+
+---
+
+### 9.1 エビデンスとのゆるやかな整合性（日本語メモ）
+
+このシミュレータは、実データから係数を推定した「予測モデル」ではなく、研究でよく出てくる傾向をざっくり反映した **思考実験モデル** です。
+
+- 教員の仕事要求・バーンアウト・離職  
+  メタ分析では、長時間労働や業務負担などの「仕事要求」はストレスやバーンアウトを高め、自律性やサポートなどの「仕事資源」はウェルビーイングと職業コミットメントを高めると報告されています（Li ら, 2025 など）。本モデルの `workload_index` や `burnout_index` の関係はこの方向性をなぞったものです。
+
+- リーダーシップ・信頼・学校風土  
+  不透明で権威主義的なマネジメントはウェルビーイングと定着を悪化させ、透明性が高く支援的なリーダーシップは信頼と定着を高めるという研究が多く報告されています（Flores & Shuls, 2024; Li, 2024; Education Support, 2025 など）。`suppression_level` や `leadership_trust_battery` の扱いはこの辺りを抽象化しています。
+
+- DX／ICT とテクノストレス  
+  複数の ICT ツールの同時利用や常時オンライン状態が、教員のテクノストレス・健康問題・ワークライフバランス悪化と関連することが示されています（Yang ら, 2025; Rey-Merchán ら, 2022; Wang ら, 2023, 2025 など）。`external_system_dependency` や `system_complexity` が上がると負担とバーンアウトが増える設計は、これをモデル化したものです。
+
+- AI / LLM ツール  
+  AI はうまく設計すればルーティン業務の軽減や個別化学習の支援になりうる一方で、新たなスキル要求や倫理的懸念も伴う二面性を持つとされています（Tan ら, 2024; Younas, 2025 など）。本モデルでは、インフラと設計が整った場合にのみ `local_llm_infra_level` などがプラスに効くようにしており、「魔法の杖」扱いはしていません。
+
+- 教員バーンアウトと生徒アウトカム  
+  系統的レビューでは、教員バーンアウトが学力や動機づけの質の低下と関連する一方で、どんな環境でも一部の生徒は高い成果を上げることも指摘されています（Madigan & Kim, 2021 など）。このアイデアが `student_future_hope_probability` に反映されており、悪い環境でも「小さながら 0 ではない future hope」、良い環境では「それなりの比率の future hope」が出るようになっています。
+
+数値自体は「仮のつまみ」であり、**どのつまみをどれくらい動かしたときに何が起きるかを議論するための道具**として設計されています。
