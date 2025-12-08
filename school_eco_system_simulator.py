@@ -171,19 +171,21 @@ class ExternalWorld:
         """
         base = actor.adaptability
 
-        # Legacy OS is just slightly disadvantaged, not doomed
+        # Keep OS-tag effects small to avoid hard-coded bias
         if "LegacyOS" in actor.os_version:
-            base -= 0.15
+            base -= 0.05
 
-        # High-adapt "OS" patterns - generic, not about any one person
         if any(tag in actor.os_version for tag in ("HighAdaptOS", "StandardOS", "LLM-aware")):
-            base += 0.15
+            base += 0.05
 
         # Change attitude has a modest effect
         if actor.change_attitude == "support":
             base += 0.05
         elif actor.change_attitude == "resist":
             base -= 0.05
+
+        # Clamp to valid range to avoid implicit advantage/disadvantage
+        base = max(0.0, min(1.0, base))
 
         return base
 
@@ -987,7 +989,8 @@ def student_future_hope_probability(
     logit = baseline_logit + 5.0 * delta
 
     p = 1.0 / (1.0 + math.exp(-logit))
-    return max(0.0, min(1.0, p))
+    # Fairness floor: always leave a small non-zero chance
+    return max(0.02, min(1.0, p))
 
 
 # -------------------------
