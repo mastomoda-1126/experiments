@@ -1,4 +1,3 @@
-`markdown
 # School Ecosystem Simulator
 
 A small **fictional systems-toy** that models a “protected” school ecosystem and a stricter external world shaped by AI / DX / macro changes. It is meant for **thought experiments and discussion**, not for prediction.
