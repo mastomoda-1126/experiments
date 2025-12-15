@@ -1,5 +1,5 @@
 """
-school_ecosystem_sim_safe.py
+school_ecosystem_simulator.py
 
 A tongue-in-cheek *fictional* simulation of:
 - A protected school ecosystem (not any real school)
